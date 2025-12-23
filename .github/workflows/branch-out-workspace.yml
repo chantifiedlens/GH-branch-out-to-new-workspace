@@ -1,0 +1,102 @@
+name: branch-out-workspace
+
+on:
+  workflow_dispatch:
+    inputs:
+        source_workspace:
+          description: 'Enter source workspace'
+          required: true
+          default: ''
+          type: string
+    
+        target_workspace:
+          description: 'Enter target workspace'
+          required: true
+          default: ''
+          type: string
+
+        copy_lakehouse_data:
+          description: 'Copy Lakehouse Data (enter True or False)'
+          required: false
+          default: 'False'
+          type: string
+
+        copy_warehouse_data:
+          description: 'Copy Warehouse Data (enter True or False)'
+          required: false
+          default: 'False'
+          type: string
+
+        developer_email:
+          description: 'Enter developer email'
+          required: true
+          default: ''
+          type: string        
+          
+        capacity_id:
+          description: 'Enter capacity ID of the new workspace'
+          required: true
+          default: ''
+          type: string        
+
+        gh_branch:
+          description: 'Enter the source branch name'
+          required: true
+          default: ''
+          type: string   
+
+        gh_git_folder:
+          description: 'Folder in the repo where the Fabric content is stored. Leave as / if content is stored in root.'
+          required: false
+          default: '/'
+          type: string   
+
+        gh_new_branch:
+          description: 'Enter the new branch name'
+          required: true
+          default: ''
+          type: string            
+
+        connections_from_to:
+          description: 'Swap connections in pipelines using names or IDs in the format (from,to) format. Leave as () if no connections to swap.'
+          required: false
+          default: '()'
+          type: string
+
+        create_lakehouse_shortcuts:
+          description: 'Create lakehouse shortcuts (only if copy lakehouse data set to False)'
+          required: false
+          default: 'True'
+          type: string
+
+        fabrictoken:
+          description: 'Fabric token for authentication'
+          required: true
+          default: ''
+          type: string   
+
+jobs:
+
+  'BranchOut':
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Install requests libraries
+    - name: Install required libraries
+      run: |
+        pip install requests
+        pip install msal
+
+    # Run Branch-Out-To-New-Workspace Script
+    - name: Run Branch-Out-To-New-Workspace Script
+      run: |        
+        python .\scripts\BranchOut-Feature-Workspace-Automation-GitHub.py --GH_OWNER ${{vars.GH_OWNER}} --GH_REPO_NAME ${{vars.GH_REPO_NAME}} --GH_NEW_BRANCH ${{github.event.inputs.gh_new_branch}} --DEVELOPER "${{ github.event.inputs.developer_email }}" --WORKSPACE_NAME "${{ github.event.inputs.target_workspace }}" --CAPACITY_ID "${{ github.event.inputs.capacity_id }}" --GH_API_URL ${{vars.GH_API_URL}} --GH_MAIN_BRANCH "${{ github.event.inputs.gh_branch }}" --GH_GIT_FOLDER "${{ github.event.inputs.gh_git_folder }}" --FABRIC_TOKEN "${{ github.event.inputs.fabrictoken }}"  --GH_PAT_TOKEN "${{ secrets.GH_PAT_TOKEN }}"
+
+    # Run Branch-Out-To-New-Workspace Script
+    - name: Invoke Fabric Post Activity Job
+      run: |        
+        python .\scripts\Run_post_activity.py --FABRIC_TOKEN "${{ github.event.inputs.fabrictoken }}" --NOTEBOOK_WORKSPACE_ID "${{vars.NOTEBOOK_WORKSPACE_ID}}" --NOTEBOOK_ID "${{vars.NOTEBOOK_ID}}" --SOURCE_WORKSPACE "${{ github.event.inputs.source_workspace }}" --TARGET_WORKSPACE "${{ github.event.inputs.target_workspace }}" --TENANT_ID "${{vars.TENANT_ID}}" --COPY_LAKEHOUSE "${{ github.event.inputs.copy_lakehouse_data }}" --COPY_WAREHOUSE "${{ github.event.inputs.copy_warehouse_data }}" --CREATE_SHORTCUTS "${{ github.event.inputs.create_lakehouse_shortcuts }}" --CONNECTIONS_FROM_TO "${{ github.event.inputs.connections_from_to }}"
+        
